@@ -76,7 +76,6 @@ class StudentController extends Controller
         ];
     }
 
-
     // Select2 AJAX search
     public function search(Request $request)
     {

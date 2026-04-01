@@ -8,6 +8,7 @@ Route::get('/', fn() => view('welcome'));
 Route::prefix('students')->name('students.')->group(function () {
     Route::get('/',                [StudentController::class, 'index'])  ->name('index');
     Route::get('/data',            [StudentController::class, 'data'])   ->name('data');
+    Route::get('/search',          [StudentController::class, 'search']) ->name('search');  // Select2
     Route::post('/store',          [StudentController::class, 'store'])  ->name('store');
     Route::get('/edit/{id}',       [StudentController::class, 'edit'])   ->name('edit');
     Route::put('/update/{id}',     [StudentController::class, 'update']) ->name('update');

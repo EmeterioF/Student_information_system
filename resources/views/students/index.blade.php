@@ -7,12 +7,25 @@
 
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
     <link href="https://cdn.datatables.net/1.13.8/css/dataTables.bootstrap5.min.css" rel="stylesheet">
+    <link href="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/css/select2.min.css" rel="stylesheet">
+    <link href="https://cdn.jsdelivr.net/npm/select2-bootstrap-5-theme@1.3.0/dist/select2-bootstrap-5-theme.min.css" rel="stylesheet">
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.0/font/bootstrap-icons.css">
 </head>
 <body>
 
 <div class="container mt-4">
     <h3 class="mb-4">Student Information System</h3>
+
+    {{-- Select2 Student Search --}}
+    <div class="mb-4">
+        <label class="form-label fw-semibold">Quick Search Student</label>
+        <select id="studentSearch" class="form-control" style="width: 100%">
+            <option></option>
+        </select>
+        <small class="text-muted">Search by Student ID, Name, Course, or Email — auto-fills the form below.</small>
+    </div>
+
+    <hr class="my-4">
 
     {{-- Form --}}
     <form id="studentForm">
@@ -59,7 +72,7 @@
 
     <hr class="my-4">
 
-    {{-- Table --}}
+    {{-- Yajra DataTable --}}
     <table id="student-table" class="table table-bordered table-striped w-100">
         <thead>
             <tr>
@@ -81,6 +94,7 @@
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
 <script src="https://cdn.datatables.net/1.13.8/js/jquery.dataTables.min.js"></script>
 <script src="https://cdn.datatables.net/1.13.8/js/dataTables.bootstrap5.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/js/select2.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/axios/dist/axios.min.js"></script>
 
 <script>
@@ -90,6 +104,7 @@
     // All route URLs in one place
     const routes = {
         data:    '{{ route("students.data") }}',
+        search:  '{{ route("students.search") }}',
         store:   '{{ route("students.store") }}',
         edit:    '{{ route("students.edit",    ":id") }}',
         update:  '{{ route("students.update",  ":id") }}',
@@ -98,7 +113,45 @@
 
     const url = (key, id = null) => id ? routes[key].replace(':id', id) : routes[key];
 
-    // Yajra DataTable
+    // ─── Select2 Student Search ───────────────────────────────────────────────
+    $('#studentSearch').select2({
+        theme:       'bootstrap-5',
+        placeholder: 'Search by Student ID, Name, Course, or Email...',
+        allowClear:  true,
+        ajax: {
+            url:      routes.search,
+            dataType: 'json',
+            delay:    250,
+            data: params => ({
+                search: params.term,
+                page:   params.page || 1,
+            }),
+            processResults: (data, params) => ({
+                results:    data.results,
+                pagination: { more: data.pagination.more },
+            }),
+            cache: true,
+        },
+    });
+
+    // When a student is selected → auto-fill the form below
+    $('#studentSearch').on('select2:select', function (e) {
+        const d = e.params.data;
+        document.getElementById('recordId').value    = d.id;
+        document.getElementById('student_id').value  = d.student_id;
+        document.getElementById('name').value        = d.name;
+        document.getElementById('course').value      = d.course;
+        document.getElementById('year_level').value  = d.year_level;
+        document.getElementById('email').value       = d.email;
+        document.getElementById('grade').value       = d.grade;
+    });
+
+    // When cleared → reset the form
+    $('#studentSearch').on('select2:clear', function () {
+        resetForm();
+    });
+
+    // ─── Yajra DataTable ──────────────────────────────────────────────────────
     const table = $('#student-table').DataTable({
         processing: true,
         serverSide: true,
@@ -115,7 +168,7 @@
         ]
     });
 
-    // Collect all form field values at once
+    // ─── Form Helpers ─────────────────────────────────────────────────────────
     const getFields = () => ({
         student_id: document.getElementById('student_id').value,
         name:       document.getElementById('name').value,
@@ -129,9 +182,8 @@
     document.getElementById('studentForm').addEventListener('submit', function (e) {
         e.preventDefault();
 
-        const id   = document.getElementById('recordId').value;
-        const data = getFields();
-
+        const id      = document.getElementById('recordId').value;
+        const data    = getFields();
         const request = id
             ? axios.put(url('update', id), data)
             : axios.post(url('store'), data);
@@ -141,7 +193,7 @@
             .catch(handleError);
     });
 
-    // Populate form for editing
+    // Populate form from DataTable edit button
     function editData(id) {
         axios.get(url('edit', id)).then(res => {
             const d = res.data;
@@ -163,11 +215,15 @@
             .then(res => { alert(res.data.message); table.ajax.reload(); });
     }
 
-    // Clear all inputs
+    // Clear all inputs + reset Select2
     function resetForm() {
         ['recordId', 'student_id', 'name', 'course', 'email', 'grade']
             .forEach(id => document.getElementById(id).value = '');
+
         document.getElementById('year_level').value = '';
+
+        // Reset Select2 dropdown without triggering the clear event
+        $('#studentSearch').val(null).trigger('change');
     }
 
     // Surface Laravel validation errors
