@@ -75,4 +75,42 @@ class StudentController extends Controller
             'grade'      => ['nullable', 'numeric', 'between:0,100'],
         ];
     }
+
+
+    // Select2 AJAX search
+    public function search(Request $request)
+    {
+        $search = $request->search;
+
+        $students = Student::where(function ($query) use ($search) {
+                if ($search) {
+                    $query->where('student_id', 'like', "%{$search}%")
+                          ->orWhere('name',       'like', "%{$search}%")
+                          ->orWhere('course',     'like', "%{$search}%")
+                          ->orWhere('email',      'like', "%{$search}%");
+                }
+            })
+            ->paginate(20);
+
+        $results = [];
+
+        foreach ($students as $student) {
+            $results[] = [
+                'id'         => $student->id,
+                'text'       => $student->student_id . ' — ' . $student->name . ' [' . $student->course . ']',
+                'student_id' => $student->student_id,
+                'name'       => $student->name,
+                'course'     => $student->course,
+                'year_level' => $student->year_level,
+                'email'      => $student->email,
+                'grade'      => $student->grade,
+            ];
+        }
+
+        return response()->json([
+            'results'    => $results,
+            'pagination' => ['more' => $students->hasMorePages()],
+        ]);
+    }
+
 }
